@@ -9,3 +9,9 @@ wheels/
 # Virtual environments
 .venv
 data/*
+data_resized/*
+data_resized.zip
+
+# Model checkpoints
+models/*
+*.pth
