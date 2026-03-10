@@ -11,7 +11,9 @@ wheels/
 data/*
 data_resized/*
 data_resized.zip
-
+data_split/*
+data_big/*
+data_*
 # Model checkpoints
 models/*
 *.pth
