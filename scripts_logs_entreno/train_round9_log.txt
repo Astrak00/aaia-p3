@@ -1,0 +1,154 @@
+Device: mps
+Loading datasets...
+  TTA: 8 transforms (4 rotations × 2 flips)
+  Loaded 3652 from data_preprocessed/train
+  Loaded 727 from data_preprocessed/val
+  Loaded 485 from data_preprocessed/test
+
+======================================================================
+  r9_00: TTA evaluation on r8_01 (single) and r7+r8 ensemble
+======================================================================
+
+  --- TTA: r8_01 single model ---
+  r8_01 standard:  0.7010
+  r8_01 TTA:       0.7340  (17.6s)
+                   precision    recall  f1-score   support
+
+           0-noDR     0.7869    0.9125    0.8451       263
+           1-mild     0.6400    0.2581    0.3678        62
+       2-moderate     0.6774    0.6562    0.6667       128
+         3-severe     0.4667    0.4118    0.4375        17
+4-proliferativeDR     0.5625    0.6000    0.5806        15
+
+         accuracy                         0.7340       485
+        macro avg     0.6267    0.5677    0.5795       485
+     weighted avg     0.7211    0.7340    0.7145       485
+
+[[240   7  13   2   1]
+ [ 32  16  14   0   0]
+ [ 31   2  84   5   6]
+ [  0   0  10   7   0]
+ [  2   0   3   1   9]]
+
+  --- TTA: ensemble r7_01 + r8_01 ---
+  Ensemble standard:  0.7072
+  Ensemble TTA:       0.7134  (21.7s for r7)
+                   precision    recall  f1-score   support
+
+           0-noDR     0.7738    0.8973    0.8310       263
+           1-mild     0.5000    0.2581    0.3404        62
+       2-moderate     0.6638    0.6016    0.6311       128
+         3-severe     0.4375    0.4118    0.4242        17
+4-proliferativeDR     0.6250    0.6667    0.6452        15
+
+         accuracy                         0.7134       485
+        macro avg     0.6000    0.5671    0.5744       485
+     weighted avg     0.6934    0.7134    0.6955       485
+
+[[236  12  13   0   2]
+ [ 32  16  14   0   0]
+ [ 35   4  77   8   4]
+ [  0   0  10   7   0]
+ [  2   0   2   1  10]]
+
+  --- TTA: ensemble r7_01 + r8_01 + r8_02 ---
+  3-model TTA ensemble: 0.7216
+                   precision    recall  f1-score   support
+
+           0-noDR     0.7831    0.8783    0.8280       263
+           1-mild     0.5128    0.3226    0.3960        62
+       2-moderate     0.6694    0.6328    0.6506       128
+         3-severe     0.5000    0.4118    0.4516        17
+4-proliferativeDR     0.6875    0.7333    0.7097        15
+
+         accuracy                         0.7216       485
+        macro avg     0.6306    0.5958    0.6072       485
+     weighted avg     0.7056    0.7216    0.7091       485
+
+[[231  15  14   0   3]
+ [ 28  20  14   0   0]
+ [ 35   4  81   6   2]
+ [  0   0  10   7   0]
+ [  1   0   2   1  11]]
+
+======================================================================
+  r9_01: EffB0 + 320px + 300 epochs (patience=60)
+======================================================================
+   Epoch   TrainLoss   ValLoss   ValAcc     Best
+  --------------------------------------------------
+     1/300      1.9907    2.3267   0.1706   0.1706 *
+     2/300      1.9527    2.3213   0.1761   0.1761 *
+     3/300      1.9175    2.3106   0.2146   0.2146 *
+     4/300      1.9091    2.2915   0.2944   0.2944 *
+     5/300      1.8549    2.2748   0.3453   0.3453 *
+     6/300      1.8137    2.2529   0.4099   0.4099 *
+     8/300      1.7782    2.2194   0.4333   0.4333 *
+     9/300      1.7400    2.2275   0.4580   0.4580 *
+    10/300      1.7583    2.2459   0.4622   0.4622 *
+    11/300      1.7303    2.2079   0.4635   0.4635 *
+    12/300      1.7155    2.1494   0.5846   0.5846 *
+    20/300      1.6365    2.1785   0.5612   0.5846
+    30/300      1.5431    2.2455   0.5695   0.5846
+    35/300      1.4492    2.2556   0.5860   0.5860 *
+    36/300      1.4452    2.1696   0.6369   0.6369 *
+    40/300      1.3831    2.2009   0.6162   0.6369
+    41/300      1.3589    2.2700   0.6451   0.6451 *
+    48/300      1.2641    2.1803   0.6534   0.6534 *
+    50/300      1.2776    2.4165   0.5612   0.6534
+    60/300      1.2132    2.2943   0.6025   0.6534
+    70/300      1.1221    2.3279   0.6300   0.6534
+    76/300      1.1056    2.2857   0.6561   0.6561 *
+    80/300      1.0652    2.3012   0.6424   0.6561
+    90/300      1.0529    2.3957   0.6217   0.6561
+    91/300      1.0552    2.2626   0.6671   0.6671 *
+    99/300      1.0187    2.2777   0.6699   0.6699 *
+   100/300      1.0403    2.2874   0.6644   0.6699
+   101/300      1.0433    2.2598   0.6795   0.6795 *
+   110/300      1.0235    2.2952   0.6534   0.6795
+   120/300      1.0014    2.3449   0.6410   0.6795
+   130/300      0.9799    2.3210   0.6520   0.6795
+   133/300      0.9864    2.2577   0.6836   0.6836 *
+   140/300      0.9949    2.3237   0.6575   0.6836
+   150/300      0.9946    2.3400   0.6575   0.6836
+   160/300      0.9731    2.3794   0.6575   0.6836
+   162/300      0.9625    2.2655   0.6850   0.6850 *
+   170/300      0.9821    2.2852   0.6781   0.6850
+   180/300      0.9495    2.2887   0.6644   0.6850
+   190/300      0.9610    2.3096   0.6657   0.6850
+   192/300      0.9472    2.2320   0.6946   0.6946 *
+   200/300      0.9589    2.3407   0.6602   0.6946
+   205/300      0.9564    2.2738   0.7001   0.7001 *
+   210/300      0.9358    2.3171   0.6616   0.7001
+   220/300      0.9413    2.2844   0.6713   0.7001
+   230/300      0.9411    2.3322   0.6781   0.7001
+   240/300      0.9329    2.2986   0.6891   0.7001
+Traceback (most recent call last):
+  File "/Users/edu/Documents/Universidad/Master_Ingeniería_Informática/clases/iaiao/p3/train_round9.py", line 789, in <module>
+    main()
+    ~~~~^^
+  File "/Users/edu/Documents/Universidad/Master_Ingeniería_Informática/clases/iaiao/p3/train_round9.py", line 476, in main
+    h1, bva1, elt1 = train_model(
+                     ~~~~~~~~~~~^
+        m_r9_01,
+        ^^^^^^^^
+    ...<5 lines>...
+        save_path=os.path.join(MODEL_DIR, "r9_01_effb0_320px_300ep.pth"),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/edu/Documents/Universidad/Master_Ingeniería_Informática/clases/iaiao/p3/train_round9.py", line 289, in train_model
+    for imgs, labels in train_loader:
+                        ^^^^^^^^^^^^
+  File "/Users/edu/Documents/Universidad/Master_Ingeniería_Informática/clases/iaiao/p3/.venv/lib/python3.14/site-packages/torch/utils/data/dataloader.py", line 741, in __next__
+    data = self._next_data()
+  File "/Users/edu/Documents/Universidad/Master_Ingeniería_Informática/clases/iaiao/p3/.venv/lib/python3.14/site-packages/torch/utils/data/dataloader.py", line 801, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/Users/edu/Documents/Universidad/Master_Ingeniería_Informática/clases/iaiao/p3/.venv/lib/python3.14/site-packages/torch/utils/data/_utils/fetch.py", line 54, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+            ~~~~~~~~~~~~^^^^^
+  File "/Users/edu/Documents/Universidad/Master_Ingeniería_Informática/clases/iaiao/p3/train_round9.py", line 83, in __getitem__
+    with Image.open(self.image_paths[idx]) as img:
+         ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/edu/Documents/Universidad/Master_Ingeniería_Informática/clases/iaiao/p3/.venv/lib/python3.14/site-packages/PIL/Image.py", line 3512, in open
+    fp = builtins.open(filename, "rb")
+FileNotFoundError: [Errno 2] No such file or directory: 'data_preprocessed/train/0-noDR/4009_left.jpeg'

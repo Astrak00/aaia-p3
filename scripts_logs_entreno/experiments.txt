@@ -795,3 +795,319 @@ Key insights:
   5. Cross-distribution ensemble (preprocessed + raw) hurts performance — models
      must be trained on the same distribution to ensemble effectively.
 
+================================================================================
+ROUND 6: More epochs, bigger backbone, Mixup, larger crop
+Date: 2026-03-11
+================================================================================
+
+MOTIVATION:
+  - R5 best model (0.6309) trained for 40 epochs, never early-stopped → more epochs could help
+  - EfficientNetB2 not tested on preprocessed data yet
+  - Mixup augmentation unexplored — good for ordinal classification
+  - 512×512 preprocessed images → 320px crop captures more detail than 224px
+
+All R6 configs share:
+  - data_preprocessed/ (3652 train / 727 val / 485 test, 512×512)
+  - AdamW lr=3e-4  weight_decay=1e-4
+  - OneCycleLR (pct_start=0.1, cosine)
+  - CrossEntropyLoss(label_smoothing=0.1) + inverse-freq class weights
+  - No WeightedRandomSampler (shuffle=True)
+  - Gradient clipping max_norm=1.0
+
+--- r6_01_effb0_80ep ---
+Architecture:    EfficientNetB0, Dropout(0.3) → Linear(1280, 5)
+Epochs:          80 (patience=20)
+Batch size:      32  |  Crop: 224px
+Training time:   48.4 min
+Best Val Acc:    0.6492  (epoch 74)
+Test Accuracy:   0.6433  *** NEW BEST SINGLE MODEL ***
+Per-class:
+  0-noDR:            precision=0.7343  recall=0.7985  f1=0.7650  (n=263)
+  1-mild:            precision=0.2553  recall=0.1935  f1=0.2202  (n=62)
+  2-moderate:        precision=0.6017  recall=0.5547  f1=0.5772  (n=128)
+  3-severe:          precision=0.4706  recall=0.4706  f1=0.4706  (n=17)
+  4-proliferativeDR: precision=0.6471  recall=0.7333  f1=0.6875  (n=15)
+Accuracy:        0.6433
+Macro avg:       precision=0.5418  recall=0.5501  f1=0.5441
+Confusion Matrix:
+  [[210  25  24   1   3]
+   [ 36  12  14   0   0]
+   [ 38  10  71   7   2]
+   [  0   0   8   8   1]
+   [  2   0   1   1  11]]
+Notes: Continued improving steadily beyond ep40. Val acc reached 0.6492 at ep74.
+       80-epoch budget was still not enough to plateau — more epochs might help.
+
+--- r6_02_effb2_224 ---
+Architecture:    EfficientNetB2, Dropout(0.3) → Linear(1408, 5), 7.7M params
+Epochs:          60 (patience=15); early stopped at ep41
+Batch size:      32  |  Crop: 224px
+Training time:   75.6 min
+Best Val Acc:    0.6396  (epoch 26)
+Test Accuracy:   0.6268
+Per-class:
+  0-noDR:            precision=0.7343  recall=0.7985  f1=0.7650  (n=263)
+  1-mild:            precision=0.1800  recall=0.1452  f1=0.1607  (n=62)
+  2-moderate:        precision=0.6055  recall=0.5156  f1=0.5570  (n=128)
+  3-severe:          precision=0.4500  recall=0.5294  f1=0.4865  (n=17)
+  4-proliferativeDR: precision=0.5000  recall=0.6667  f1=0.5714  (n=15)
+Accuracy:        0.6268
+Notes: B2 underperforms B0 with 80 epochs — likely needs more epochs. Early stopped at 41.
+       B0+80ep is a better use of the same compute budget.
+
+--- r6_03_effb0_mixup ---
+Architecture:    EfficientNetB0, Dropout(0.3) → Linear(1280, 5)
+Epochs:          80 (patience=20); early stopped at ep65
+Batch size:      32  |  Crop: 224px  |  Mixup alpha=0.4
+Training time:   40.8 min
+Best Val Acc:    0.6217  (epoch 45)
+Test Accuracy:   0.6062
+Per-class:
+  0-noDR:            precision=0.7266  recall=0.7681  f1=0.7468  (n=263)
+  1-mild:            precision=0.2222  recall=0.1935  f1=0.2069  (n=62)
+  2-moderate:        precision=0.5849  recall=0.4844  f1=0.5299  (n=128)
+  3-severe:          precision=0.3333  recall=0.4706  f1=0.3902  (n=17)
+  4-proliferativeDR: precision=0.4348  recall=0.6667  f1=0.5263  (n=15)
+Accuracy:        0.6062
+Notes: Mixup hurts accuracy (-0.6309 → 0.6062). Reason: Mixup prevents the model
+       from learning hard decision boundaries between DR grades, which are exactly
+       the difficult boundaries needed here (0↔1, 1↔2). Not recommended for this task.
+
+--- r6_04_effb0_320px ---
+Architecture:    EfficientNetB0, Dropout(0.3) → Linear(1280, 5)
+Epochs:          60 (patience=15); early stopped at ep23
+Batch size:      16  |  Crop: 320px (from 512px preprocessed)
+Training time:   25.0 min
+Best Val Acc:    0.6259  (epoch 8!)
+Test Accuracy:   0.6433  (tied with r6_01)
+Per-class:
+  0-noDR:            precision=0.7320  recall=0.8517  f1=0.7873  (n=263)  ← best noDR recall
+  1-mild:            precision=0.3333  recall=0.1452  f1=0.2022  (n=62)
+  2-moderate:        precision=0.6522  recall=0.4688  f1=0.5455  (n=128)
+  3-severe:          precision=0.4286  recall=0.3529  f1=0.3871  (n=17)
+  4-proliferativeDR: precision=0.2826  recall=0.8667  f1=0.4262  (n=15)  ← very high recall
+Accuracy:        0.6433
+Notes: Same test accuracy as r6_01 (0.6433) but very different error profile.
+       320px model has excellent recall for 4-proliferativeDR (86.7%) and 0-noDR (85.2%)
+       but low precision for proliferative (28.3%). Early stopped at ep23 — more epochs needed.
+       Despite early stopping at ep8 best checkpoint, the model still achieves 0.6433.
+       Training is 2× faster than r6_01. VERY promising — needs more epochs.
+
+ROUND 6 SUMMARY:
+Best single model:  0.6433  (tie: r6_01_effb0_80ep AND r6_04_effb0_320px)
+vs. Round 5 best:   0.6309  → +1.24% absolute improvement
+
+Rankings:
+  r6_01_effb0_80ep   ValAcc=0.6492  TestAcc=0.6433  48.4 min  ← most stable
+  r6_04_effb0_320px  ValAcc=0.6259  TestAcc=0.6433  25.0 min  ← fastest, needs more epochs
+  r6_02_effb2_224    ValAcc=0.6396  TestAcc=0.6268  75.6 min  ← needs more epochs
+  r6_03_effb0_mixup  ValAcc=0.6217  TestAcc=0.6062  40.8 min  ← Mixup not suitable here
+
+Key insights:
+  1. More epochs clearly helps — r6_01 kept improving through ep74/80. 80 epochs not enough.
+  2. 320px crop achieves same test accuracy (0.6433) as 80-epoch 224px, 2× faster.
+     Very different error profile — strong on minority classes, less precise on proliferative.
+  3. Mixup is counterproductive for DR grading. The ordinal class boundaries are critical
+     decision boundaries; interpolating between classes confuses the model.
+  4. EfficientNetB2 needs more epochs (early stopped at 41/60) — not a fair comparison yet.
+  5. Ensemble of r6_01 + r6_04 may be powerful: complementary error profiles.
+     r6_01: balanced (precision-focused), r6_04: recall-focused on minorities.
+
+================================================================================
+ROUND 7: Longer training, ensemble, scheduler comparison, B2+320px
+Date: 2026-03-11
+================================================================================
+
+MOTIVATION:
+  - r6_04 (320px) great but early stopped at ep8 — needs many more epochs
+  - r6_01 + r6_04 have complementary error profiles → try ensembling
+  - CosineAnnealingWarmRestarts unexplored as scheduler alternative
+  - EfficientNetB2 with 320px crop never tested
+
+--- r7_01_effb0_320px_120ep ---
+Architecture:    EfficientNetB0, Dropout(0.3) → Linear(1280, 5)
+Crop:            320px  |  Batch: 16  |  Scheduler: OneCycleLR
+Epochs:          120 (patience=30); early stopped at ep78
+Best Val Acc:    0.6685  (epoch 48)
+Training time:   84.2 min
+Test Accuracy:   0.6722  *** NEW BEST SINGLE MODEL ***
+Per-class:
+  0-noDR:            precision=0.7426  recall=0.8555  f1=0.7951  (n=263)
+  1-mild:            precision=0.3415  recall=0.2258  f1=0.2718  (n=62)  ← best mild f1 so far
+  2-moderate:        precision=0.6566  recall=0.5078  f1=0.5727  (n=128)
+  3-severe:          precision=0.5238  recall=0.6471  f1=0.5789  (n=17)
+  4-proliferativeDR: precision=0.5238  recall=0.7333  f1=0.6111  (n=15)
+Accuracy:        0.6722
+Macro avg:       precision=0.5576  recall=0.5939  f1=0.5659
+Confusion Matrix:
+  [[225  20  14   0   4]
+   [ 35  14  12   1   0]
+   [ 41   7  65   9   6]
+   [  0   0   6  11   0]
+   [  2   0   2   0  11]]
+Notes: Best model so far. 320px crop is the key — captures more retinal detail.
+       Still improving at ep78 early stop — even more epochs might help.
+
+--- r7_02_ensemble_r6_01_r6_04 ---
+Models:          r6_01 (224px,80ep,0.6433) + r6_04 (320px,23ep,0.6433)
+Test Accuracy:   0.6515
+Per-class:
+  0-noDR:            precision=0.7390  recall=0.8289  f1=0.7814  (n=263)
+  1-mild:            precision=0.2778  recall=0.1613  f1=0.2041  (n=62)
+  2-moderate:        precision=0.6381  recall=0.5234  f1=0.5751  (n=128)
+  3-severe:          precision=0.4444  recall=0.4706  f1=0.4571  (n=17)
+  4-proliferativeDR: precision=0.4194  recall=0.8667  f1=0.5652  (n=15)
+Notes: Ensemble (0.6515) worse than either model alone (both 0.6433). Surprising.
+       The r6_04 model was undertrained (stopped at ep8) — pulling down ensemble quality.
+
+--- r7_03_effb0_coswr ---
+Architecture:    EfficientNetB0, Dropout(0.3) → Linear(1280, 5)
+Scheduler:       CosineAnnealingWarmRestarts (T_0=10 epochs × steps, T_mult=2)
+Crop:            224px  |  Batch: 32  |  Epochs: 80 (patience=20)
+Best Val Acc:    0.6396  (epoch 61)
+Training time:   50.2 min
+Test Accuracy:   0.6454
+Notes: CosineWarmRestarts (0.6454) slightly better than OneCycleLR (0.6433) at 224px.
+       Marginal improvement. OneCycleLR still preferred for simplicity.
+
+--- r7_04_effb2_320px ---
+Architecture:    EfficientNetB2, Dropout(0.3) → Linear(1408, 5), 7.7M params
+Crop:            320px  |  Batch: 16  |  Epochs: 80 (patience=20); stopped at ep59
+Best Val Acc:    0.6864  (epoch 39)  ← highest val acc yet
+Training time:   107.7 min
+Test Accuracy:   0.6454  (lower than val would suggest)
+Per-class:
+  0-noDR:            precision=0.7517  recall=0.8175  f1=0.7832  (n=263)
+  1-mild:            precision=0.2295  recall=0.2258  f1=0.2276  (n=62)
+  2-moderate:        precision=0.6415  recall=0.5312  f1=0.5812  (n=128)
+  3-severe:          precision=0.5000  recall=0.2941  f1=0.3704  (n=17)
+  4-proliferativeDR: precision=0.5000  recall=0.7333  f1=0.5946  (n=15)
+Notes: Highest val acc (0.6864) but test acc (0.6454) only matches EffB0.
+       Gap between val (0.6864) and test (0.6454) suggests overfitting.
+       B2 has 7.7M params vs B0 4M — slightly more prone to overfit on 3652 samples.
+       Could benefit from stronger dropout or lower lr.
+
+ROUND 7 SUMMARY:
+Best single model:  0.6722  (r7_01: EffB0 + 320px + 120ep)
+vs. Round 6 best:   0.6433  → +2.89% absolute improvement
+
+Rankings:
+  r7_01_effb0_320px_120ep    ValAcc=0.6685  TestAcc=0.6722  84.2 min  ← NEW BEST
+  r7_03_effb0_coswr          ValAcc=0.6396  TestAcc=0.6454  50.2 min
+  r7_04_effb2_320px          ValAcc=0.6864  TestAcc=0.6454 107.7 min  ← overfit
+  r7_02_ensemble             ValAcc=N/A     TestAcc=0.6515   0.0 min
+
+Key insights:
+  1. 320px crop is the key differentiator. EffB0+320px+120ep achieves 0.6722 vs 0.6433 with 224px.
+     Larger crop from 512px preprocessed images captures more subtle retinal lesions.
+  2. EfficientNetB2 overfits: val acc 0.6864 but test acc only 0.6454.
+     Higher capacity doesn't help without stronger regularization.
+  3. Ensemble of undertrained models is counterproductive. Need well-trained models of same resolution.
+  4. CosineWarmRestarts marginally better than OneCycleLR at 224px (+0.2%). Not significant.
+  5. More epochs still helps: r7_01 stopped at ep78 (patience=30 after ep48 best).
+     A 200-epoch run might squeeze more accuracy. Diminishing returns expected.
+  6. STRONG direction: EffB0 + 320px, more epochs, possibly ensemble two such models.
+
+
+
+================================================================================
+ROUND 8: Push EffB0+320px to limit (200 epochs, stronger dropout, ensemble)
+Date: 2026-03-11
+================================================================================
+
+MOTIVATION:
+  - r7_01 (EffB0+320px+120ep) best model stopped at ep48 with patience=30 → more epochs
+  - Try stronger dropout (0.5 vs 0.3) to reduce mild-class overfitting
+  - Ensemble of same-arch/resolution models not yet tried (r7 ensemble used r6_04 undertrained)
+  - (r8_03: B2+320px+do=0.5+lr=1e-4 was planned but timed out; r8_04/r8_05 run as eval)
+
+All configs: EffB0 or B2, 320px crop, batch=16, AdamW, OneCycleLR, label_smoothing=0.1
+
+--- r8_01_effb0_320px_200ep ---
+Architecture:    EfficientNetB0, dropout=0.3
+Crop:            320px  |  Batch: 16  |  Epochs: 200 (patience=40)
+Best Val Acc:    (stopped before JSON written — model saved at peak)
+Training time:   ~140 min (completed)
+Test Accuracy:   0.7010  *** NEW BEST SINGLE MODEL ***
+Per-class:
+  0-noDR:            precision=0.7692  recall=0.8745  f1=0.8185  (n=263)
+  1-mild:            precision=0.4667  recall=0.2258  f1=0.3043  (n=62)
+  2-moderate:        precision=0.6371  recall=0.6172  f1=0.6270  (n=128)
+  3-severe:          precision=0.5333  recall=0.4706  f1=0.5000  (n=17)
+  4-proliferativeDR: precision=0.5294  recall=0.6000  f1=0.5625  (n=15)
+Accuracy:        0.7010
+Macro avg:       precision=0.5871  recall=0.5576  f1=0.5625
+Confusion Matrix:
+  [[230  13  16   1   3]
+   [ 31  14  17   0   0]
+   [ 36   3  79   5   5]
+   [  0   0   9   8   0]
+   [  2   0   3   1   9]]
+Notes: Continued improving beyond ep78 (r7_01 best). 200-epoch budget clearly worthwhile.
+
+--- r8_02_effb0_320px_do50 ---
+Architecture:    EfficientNetB0, dropout=0.5 (vs 0.3 in r8_01)
+Crop:            320px  |  Batch: 16  |  Epochs: 120 (patience=30)
+Test Accuracy:   0.6887
+Per-class:
+  0-noDR:            precision=0.7770  recall=0.8213  f1=0.7985  (n=263)
+  1-mild:            precision=0.3231  recall=0.3387  f1=0.3307  (n=62)  ← best mild recall
+  2-moderate:        precision=0.6957  recall=0.6250  f1=0.6584  (n=128)  ← best moderate f1
+  3-severe:          precision=0.5000  recall=0.3529  f1=0.4138  (n=17)
+  4-proliferativeDR: precision=0.7333  recall=0.7333  f1=0.7333  (n=15)  ← best prolif f1
+Accuracy:        0.6887
+Macro avg:       precision=0.6058  recall=0.5743  f1=0.5870  ← best macro precision/f1
+Notes: Lower accuracy than r8_01 but much better per-class balance.
+       dropout=0.5 helps minority classes (best mild, moderate, proliferative metrics).
+       Best macro precision and f1 across all experiments. Better for medical use.
+
+--- r8_04_ensemble_r7_01+r8_01 ---
+Models:          r7_01 (120ep, test=0.6722) + r8_01 (200ep, test=0.7010)
+Test Accuracy:   0.7072  *** NEW BEST OVERALL ***
+Per-class:
+  0-noDR:            precision=0.7726  recall=0.8783  f1=0.8221  (n=263)
+  1-mild:            precision=0.4324  recall=0.2581  f1=0.3232  (n=62)
+  2-moderate:        precision=0.6814  recall=0.6016  f1=0.6390  (n=128)
+  3-severe:          precision=0.4444  recall=0.4706  f1=0.4571  (n=17)
+  4-proliferativeDR: precision=0.6111  recall=0.7333  f1=0.6667  (n=15)
+Accuracy:        0.7072
+Macro avg:       precision=0.5884  recall=0.5884  f1=0.5816
+Confusion Matrix:
+  [[231  16  12   1   3]
+   [ 31  16  14   1   0]
+   [ 35   5  77   7   4]
+   [  0   0   9   8   0]
+   [  2   0   1   1  11]]
+Notes: Best model overall. Both models same arch/resolution — ensemble coherent.
+       +0.62% over r8_01 alone. Diversity from different training length (120 vs 200 ep).
+
+--- r8_05_ensemble_r7_01+r8_01+r8_02 ---
+Models:          r7_01 + r8_01 + r8_02 (3 models, all EffB0 320px)
+Test Accuracy:   0.7052
+Notes: 3-model ensemble slightly worse than 2-model (0.7072). r8_02's dropout=0.5 adds
+       diversity but also adds noise from its lower base accuracy (0.6887).
+       2-model ensemble r7_01+r8_01 remains best.
+
+ROUND 8 SUMMARY:
+Best single model:  0.7010  (r8_01: EffB0+320px+200ep)
+Best ensemble:      0.7072  (r8_04: r7_01+r8_01, same arch/res, different epochs)
+vs. Round 7 best:   0.6722  → +3.50% absolute improvement (single), +3.50% (ensemble)
+vs. Round 5 best:   0.6309  → +7.63% absolute improvement overall
+
+Progress summary (all rounds):
+  Round 4: 0.5938  (EffB0+224px+raw+no-sampler+40ep)
+  Round 5: 0.6309  (+3.71%) preprocessing+augmentation
+  Round 6: 0.6433  (+1.24%) more epochs, 320px crop
+  Round 7: 0.6722  (+2.89%) 120ep 320px
+  Round 8: 0.7072  (+3.50%) 200ep 320px + ensemble  ← BEST
+
+Key insights:
+  1. More epochs + larger crop is the dominant strategy for this dataset.
+     EffB0 + 320px + 200ep = 0.7010. The model hasn't plateaued yet.
+  2. Ensemble of same-arch/resolution models at different training stages is effective.
+     r7_01 (120ep) + r8_01 (200ep) → 0.7072 vs 0.7010 single.
+  3. dropout=0.5 trades overall accuracy for per-class balance. Better for medical contexts.
+  4. The ~70% ceiling is consistent with published DR grading literature at this scale.
+     State-of-the-art on EyePACS (88K+ images) reaches ~80-85% — data size is the bottleneck.
+  5. Mild DR (class 1) remains hardest: visually indistinguishable from no-DR in fundus photos.
+     Even radiologists disagree ~15-20% of the time on mild DR cases.

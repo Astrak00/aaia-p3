@@ -14,6 +14,7 @@ data_resized.zip
 data_split/*
 data_big/*
 data_*
+datos*
 # Model checkpoints
 models/*
 *.pth
