@@ -15,6 +15,15 @@ data_split/*
 data_big/*
 data_*
 datos*
+fotos_raw*
+fotos_procesadas*
+fotos*
+
 # Model checkpoints
 models/*
 *.pth
+
+# Segmentation
+blood_cell_segmentation_unet*
+blood_cell_segmentation_unet/
+dataset
